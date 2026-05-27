@@ -1,3 +1,6 @@
-# Tarefas: Script de Cálculo de Progresso
+# Tasks: Conexão Frontend e CRUD
 
-- [ ] **Python:** Implementar o script `scripts/calculate_progress.py` que recebe uma lista de tarefas via `sys.stdin`, calcula a porcentagem de tarefas concluídas e imprime o resultado como um JSON no `sys.stdout`.
+- [x] Conectar página de Disciplinas ao Xano (CRUD)
+- [x] Conectar página de Tarefas ao Xano (CRUD)
+- [x] Implementar campos de Adicionar, Editar e Excluir em Disciplinas
+- [x] Implementar campos de Adicionar, Editar e Excluir em Tarefas
