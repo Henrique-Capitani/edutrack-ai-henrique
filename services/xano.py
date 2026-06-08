@@ -7,13 +7,17 @@ BASE_URL = "https://x8ki-letl-twmt.n7.xano.io/api:edutrack"
 # SUBJECTS
 # ==================================================
 
-# LISTAR DISCIPLINAS
-def get_subjects():
+def get_subjects(token):
 
     try:
 
+        headers = {
+            "Authorization": f"Bearer {token}"
+        }
+
         response = requests.get(
-            f"{BASE_URL}/subjects"
+            f"{BASE_URL}/subjects",
+            headers=headers
         )
 
         return response.json()
@@ -24,8 +28,13 @@ def get_subjects():
             "error": str(e)
         }
 
-# CRIAR DISCIPLINA
-def add_subject(name, professor, carga_horaria):
+
+def add_subject(
+    token,
+    name,
+    professor,
+    carga_horaria
+):
 
     try:
 
@@ -35,9 +44,14 @@ def add_subject(name, professor, carga_horaria):
             "carga_horaria": carga_horaria
         }
 
+        headers = {
+            "Authorization": f"Bearer {token}"
+        }
+
         response = requests.post(
             f"{BASE_URL}/subjects",
-            json=data
+            json=data,
+            headers=headers
         )
 
         return response.json()
@@ -47,18 +61,23 @@ def add_subject(name, professor, carga_horaria):
         return {
             "error": str(e)
         }
+
 
 # ==================================================
 # TASKS
 # ==================================================
 
-# LISTAR TAREFAS
-def get_tasks():
+def get_tasks(token):
 
     try:
 
+        headers = {
+            "Authorization": f"Bearer {token}"
+        }
+
         response = requests.get(
-            f"{BASE_URL}/tasks"
+            f"{BASE_URL}/tasks",
+            headers=headers
         )
 
         return response.json()
@@ -69,8 +88,14 @@ def get_tasks():
             "error": str(e)
         }
 
-# CRIAR TAREFA
-def add_task(title, description, deadline, status):
+
+def add_task(
+    token,
+    title,
+    description,
+    deadline,
+    status
+):
 
     try:
 
@@ -81,9 +106,14 @@ def add_task(title, description, deadline, status):
             "status": status
         }
 
+        headers = {
+            "Authorization": f"Bearer {token}"
+        }
+
         response = requests.post(
             f"{BASE_URL}/tasks",
-            json=data
+            json=data,
+            headers=headers
         )
 
         return response.json()

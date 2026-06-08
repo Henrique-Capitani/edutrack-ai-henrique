@@ -8,7 +8,6 @@ import requests
 LOGIN_URL = "https://x8ki-letl-twmt.n7.xano.io/api:92pcNBqE/auth/login"
 
 SIGNUP_URL = "https://x8ki-letl-twmt.n7.xano.io/api:92pcNBqE/auth/signup"
-
 # ====================================
 # CONFIGURAÇÃO DA PÁGINA
 # ====================================

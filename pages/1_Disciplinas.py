@@ -1,102 +1,259 @@
 import streamlit as st
 import requests
 
-# Configurações da API Xano
-BASE_URL = "https://x8ki-letl-twmt.n7.xano.io/api:edutrack/subjects"
+# ==========================================
+# LOGIN
+# ==========================================
 
-st.title("📚 Gestão de Disciplinas")
-
-# Verificação de Autenticação
-if not st.session_state.get('auth_token'):
-    st.warning("Por favor, realize o login para gerenciar disciplinas.")
+if "auth_token" not in st.session_state:
+    st.warning("Faça login primeiro.")
     st.stop()
 
-def get_headers():
-    return {"Authorization": f"Bearer {st.session_state.get('auth_token', '')}"}
+# ==========================================
+# TÍTULO
+# ==========================================
 
-def get_subjects():
-    try:
-        response = requests.get(BASE_URL, headers=get_headers(), timeout=10)
-        return response.json() if response.status_code == 200 else []
-    except Exception as e:
-        st.error(f"Erro ao conectar com Xano: {e}")
-        return []
+st.title("📚 Minhas Disciplinas")
 
-def add_subject(name):
-    try:
-        response = requests.post(BASE_URL, headers=get_headers(), json={"name": name}, timeout=10)
-        return response
-    except Exception as e:
-        st.error(f"Erro de rede/conexão: {e}")
-        return None
+# ==========================================
+# API
+# ==========================================
 
-def update_subject(id, name):
-    try:
-        response = requests.patch(
-            f"{BASE_URL}/{id}", 
-            headers=get_headers(), 
-            json={"name": name}, 
-            timeout=10
+BASE_URL = "https://x8ki-letl-twmt.n7.xano.io/api:edutrack/subjects"
+
+
+headers = {
+    "Authorization": f"Bearer {st.session_state.auth_token}"
+}
+
+# ==========================================
+# NOVA DISCIPLINA
+# ==========================================
+
+with st.expander("➕ Nova Disciplina"):
+
+    nome = st.text_input("Nome da disciplina")
+
+    professor = st.text_input("Professor")
+
+    carga_horaria = st.number_input(
+        "Carga Horária",
+        min_value=1,
+        step=1
+    )
+
+    if st.button("Salvar Disciplina"):
+
+        payload = {
+            "name": nome,
+            "professor": professor,
+            "carga_horaria": carga_horaria
+        }
+
+        response = requests.post(
+            URL_SUBJECTS,
+            json=payload,
+            headers=headers
         )
-        return response
-    except Exception as e:
-        return None
 
-def delete_subject(id):
-    try:
-        response = requests.delete(f"{BASE_URL}/{id}", headers=get_headers(), timeout=10)
-        return response
-    except Exception as e:
-        return None
+        if response.status_code in [200, 201]:
 
-# --- Interface: Adicionar ---
-with st.expander("➕ Adicionar Nova Disciplina"):
-    with st.form("add_subject_form"):
-        new_name = st.text_input("Nome da Disciplina")
-        if st.form_submit_button("Salvar"):
-            if new_name:
-                res = add_subject(new_name)
-                if res and res.ok:
-                    st.success("Disciplina adicionada!")
-                    st.rerun()
-                else:
-                    error_msg = res.text if res else "Servidor inacessível"
-                    st.error(f"Erro ao adicionar: {error_msg}")
+            st.success(
+                "Disciplina criada com sucesso!"
+            )
 
-# --- Interface: Listagem e Ações ---
-subjects = get_subjects()
+            st.rerun()
 
-if not subjects:
-    st.info("Nenhuma disciplina encontrada.")
+        else:
+
+            st.error(
+                f"Erro ao criar disciplina ({response.status_code})"
+            )
+
+# ==========================================
+# LISTAR DISCIPLINAS
+# ==========================================
+
+response = requests.get(
+    URL_SUBJECTS,
+    headers=headers
+)
+
+if response.status_code != 200:
+
+    st.error(
+        f"Erro ao carregar disciplinas ({response.status_code})"
+    )
+
+    st.stop()
+
+disciplinas = response.json()
+
+# ==========================================
+# EXIBIÇÃO
+# ==========================================
+
+if not disciplinas:
+
+    st.info(
+        "Nenhuma disciplina cadastrada."
+    )
+
 else:
-    for sub in subjects:
+
+    st.success(
+        f"{len(disciplinas)} disciplina(s) encontrada(s)"
+    )
+
+    for disciplina in disciplinas:
+
         with st.container(border=True):
-            col1, col2, col3 = st.columns([3, 1, 1])
-            
+
+            st.subheader(
+                disciplina["name"]
+            )
+
+            st.write(
+                f"👨‍🏫 Professor: {disciplina['professor']}"
+            )
+
+            st.write(
+                f"⏰ Carga Horária: {disciplina['carga_horaria']}"
+            )
+
+            col1, col2 = st.columns(2)
+
+            # ==========================================
+            # EDITAR
+            # ==========================================
+
             with col1:
-                st.write(f"**{sub['name']}**")
-            
+
+                if st.button(
+                    "✏️ Editar",
+                    key=f"edit_{disciplina['id']}"
+                ):
+
+                    st.session_state[
+                        "editar_disciplina"
+                    ] = disciplina["id"]
+
+            # ==========================================
+            # EXCLUIR
+            # ==========================================
+
             with col2:
-                if st.button("Editar", key=f"edit_btn_{sub['id']}"):
-                    st.session_state[f"editing_{sub['id']}"] = True
-            
-            with col3:
-                if st.button("Excluir", key=f"del_btn_{sub['id']}", type="primary"):
-                    res = delete_subject(sub['id'])
-                    if res and res.ok:
-                        st.success("Excluída!")
+
+                if st.button(
+                    "🗑️ Excluir",
+                    key=f"delete_{disciplina['id']}"
+                ):
+
+                    delete_url = (
+                        f"{URL_SUBJECTS}/{disciplina['id']}"
+                    )
+
+                    delete_response = requests.delete(
+                        delete_url,
+                        headers=headers
+                    )
+
+                    if delete_response.status_code in [200, 204]:
+
+                        st.success(
+                            "Disciplina excluída."
+                        )
+
                         st.rerun()
+
                     else:
-                        st.error("Erro ao excluir.")
-            
-            # Formulário de Edição Inline
-            if st.session_state.get(f"editing_{sub['id']}", False):
-                with st.form(key=f"form_edit_{sub['id']}"):
-                    edit_name = st.text_input("Novo Nome", value=sub['name'])
-                    if st.form_submit_button("Confirmar Alteração"):
-                        res = update_subject(sub['id'], edit_name)
-                        if res and res.ok:
-                            st.session_state[f"editing_{sub['id']}"] = False
+
+                        st.error(
+                            f"Erro ao excluir ({delete_response.status_code})"
+                        )
+
+            # ==========================================
+            # FORMULÁRIO EDIÇÃO
+            # ==========================================
+
+            if st.session_state.get(
+                "editar_disciplina"
+            ) == disciplina["id"]:
+
+                st.markdown("---")
+
+                novo_nome = st.text_input(
+                    "Nome",
+                    value=disciplina["name"],
+                    key=f"nome_{disciplina['id']}"
+                )
+
+                novo_professor = st.text_input(
+                    "Professor",
+                    value=disciplina["professor"],
+                    key=f"prof_{disciplina['id']}"
+                )
+
+                nova_carga = st.number_input(
+                    "Carga Horária",
+                    value=int(
+                        disciplina["carga_horaria"]
+                    ),
+                    key=f"carga_{disciplina['id']}"
+                )
+
+                col_salvar, col_cancelar = st.columns(2)
+
+                with col_salvar:
+
+                    if st.button(
+                        "💾 Salvar Alterações",
+                        key=f"save_{disciplina['id']}"
+                    ):
+
+                        patch_url = (
+                            f"{URL_SUBJECTS}/{disciplina['id']}"
+                        )
+
+                        payload = {
+                            "name": novo_nome,
+                            "professor": novo_professor,
+                            "carga_horaria": nova_carga
+                        }
+
+                        patch_response = requests.patch(
+                            patch_url,
+                            json=payload,
+                            headers=headers
+                        )
+
+                        if patch_response.status_code == 200:
+
+                            st.success(
+                                "Disciplina atualizada com sucesso!"
+                            )
+
+                            del st.session_state[
+                                "editar_disciplina"
+                            ]
+
                             st.rerun()
+
                         else:
-                            st.error("Erro ao atualizar.")
+
+                            st.error(
+                                f"Erro ao atualizar ({patch_response.status_code})"
+                            )
+
+                with col_cancelar:
+
+                    if st.button(
+                        "❌ Cancelar",
+                        key=f"cancel_{disciplina['id']}"
+                    ):
+
+                        del st.session_state[
+                            "editar_disciplina"
+                        ]
+
+                        st.rerun()

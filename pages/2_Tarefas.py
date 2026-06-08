@@ -1,98 +1,303 @@
 import streamlit as st
 import requests
-from datetime import datetime
 
-st.set_page_config(
-    page_title="Tarefas",
-    page_icon="📝"
-)
+# ==========================================
+# LOGIN
+# ==========================================
 
-# Configurações da API Xano
+if "auth_token" not in st.session_state:
+    st.warning("Faça login primeiro.")
+    st.stop()
+
+# ==========================================
+# CONFIG
+# ==========================================
+
 API_TASKS = "https://x8ki-letl-twmt.n7.xano.io/api:edutrack/tasks"
 API_SUBJECTS = "https://x8ki-letl-twmt.n7.xano.io/api:edutrack/subjects"
 
+headers = {
+    "Authorization": f"Bearer {st.session_state.auth_token}"
+}
+
+# ==========================================
+# TÍTULO
+# ==========================================
+
 st.title("📝 Minhas Tarefas")
 
-# Verificação de Autenticação
-if not st.session_state.get('auth_token'):
-    st.warning("Por favor, realize o login para ver suas tarefas.")
+# ==========================================
+# CARREGAR DISCIPLINAS
+# ==========================================
+
+subjects_response = requests.get(
+    URL_SUBJECTS,
+    headers=headers
+)
+
+disciplinas = []
+
+if subjects_response.status_code == 200:
+    disciplinas = subjects_response.json()
+
+# ==========================================
+# NOVA TAREFA
+# ==========================================
+
+with st.expander("➕ Nova Tarefa"):
+
+    titulo = st.text_input("Título")
+
+    descricao = st.text_area("Descrição")
+
+    prazo = st.date_input("Prazo")
+
+    status = st.selectbox(
+        "Status",
+        [
+            "pending",
+            "in_progress",
+            "completed"
+        ]
+    )
+
+    disciplina_escolhida = st.selectbox(
+        "Disciplina",
+        disciplinas,
+        format_func=lambda x: x["name"]
+    ) if disciplinas else None
+
+    if st.button("Salvar Tarefa"):
+
+        if not disciplina_escolhida:
+
+            st.error("Selecione uma disciplina.")
+
+        else:
+
+            payload = {
+                "title": titulo,
+                "description": descricao,
+                "deadline": str(prazo),
+                "status": status,
+                "subject_id": disciplina_escolhida["id"]
+            }
+
+            response = requests.post(
+                URL_TASKS,
+                json=payload,
+                headers=headers
+            )
+
+            if response.ok:
+
+                st.success(
+                    "Tarefa criada com sucesso!"
+                )
+
+                st.rerun()
+
+            else:
+
+                st.error(
+                    f"Erro ao criar tarefa: {response.text}"
+                )
+# ==========================================
+# FILTROS
+# ==========================================
+
+col1, col2 = st.columns(2)
+
+with col1:
+
+    busca = st.text_input(
+        "Buscar tarefa"
+    )
+
+with col2:
+
+    filtro_status = st.selectbox(
+        "Status",
+        [
+            "Todos",
+            "pending",
+            "in_progress",
+            "completed"
+        ]
+    )
+
+# ==========================================
+# CARREGAR TAREFAS
+# ==========================================
+
+response = requests.get(
+    URL_TASKS,
+    headers=headers
+)
+
+if response.status_code == 429:
+
+    st.warning(
+        "Limite temporário do plano gratuito do Xano atingido. Aguarde alguns segundos e tente novamente."
+    )
+
     st.stop()
 
-def get_headers():
-    return {"Authorization": f"Bearer {st.session_state.get('auth_token', '')}"}
+elif response.status_code != 200:
 
-def get_data(url):
-    try:
-        resp = requests.get(url, headers=get_headers(), timeout=10)
-        return resp.json() if resp.status_code == 200 else []
-    except Exception as e:
-        st.error(f"Erro ao carregar dados: {e}")
-        return []
+    st.error(
+        f"Erro ao carregar tarefas ({response.status_code})"
+    )
 
-subjects = get_data(API_SUBJECTS)
-tasks = get_data(API_TASKS)
+    st.stop()
 
-# --- Adicionar Tarefa ---
-with st.expander("➕ Nova Tarefa"):
-    if not subjects:
-        st.info("Crie uma disciplina primeiro.")
-    else:
-        with st.form("new_task"):
-            t_title = st.text_input("Título")
-            t_desc = st.text_area("Descrição")
-            t_date = st.date_input("Data")
-            sub_options = {s['name']: s['id'] for s in subjects}
-            t_sub = st.selectbox("Disciplina", options=list(sub_options.keys()))
-            
-            if st.form_submit_button("Criar"):
-                payload = {
-                    "subject_id": sub_options[t_sub],
-                    "title": t_title,
-                    "description": t_desc,
-                    "due_date": str(t_date),
-                    "status": "pending"
-                }
-                response = requests.post(API_TASKS, headers=get_headers(), json=payload)
-                if response.ok:
-                    st.success("Tarefa criada!")
+tarefas = response.json()
+
+# ==========================================
+# FILTROS FRONT
+# ==========================================
+
+if busca:
+
+    tarefas = [
+        t for t in tarefas
+        if busca.lower()
+        in t["title"].lower()
+    ]
+
+if filtro_status != "Todos":
+
+    tarefas = [
+        t for t in tarefas
+        if t["status"] == filtro_status
+    ]
+
+# ==========================================
+# LISTAGEM
+# ==========================================
+
+st.success(
+    f"{len(tarefas)} tarefa(s) encontrada(s)"
+)
+
+for tarefa in tarefas:
+
+    with st.container(border=True):
+
+        st.subheader(
+            tarefa["title"]
+        )
+
+        st.write(
+            tarefa["description"]
+        )
+
+        st.write(
+            f"📅 Prazo: {tarefa['deadline']}"
+        )
+
+        st.write(
+            f"📌 Status: {tarefa['status']}"
+        )
+
+        col1, col2 = st.columns(2)
+
+        # ==================================
+        # EDITAR
+        # ==================================
+
+        with col1:
+
+            with st.popover(
+                f"✏️ Editar #{tarefa['id']}"
+            ):
+
+                novo_titulo = st.text_input(
+                    "Título",
+                    value=tarefa["title"],
+                    key=f"titulo_{tarefa['id']}"
+                )
+
+                nova_desc = st.text_area(
+                    "Descrição",
+                    value=tarefa["description"],
+                    key=f"desc_{tarefa['id']}"
+                )
+
+                novo_status = st.selectbox(
+                    "Status",
+                    [
+                        "pending",
+                        "in_progress",
+                        "completed"
+                    ],
+                    index=[
+                        "pending",
+                        "in_progress",
+                        "completed"
+                    ].index(
+                        tarefa["status"]
+                    ),
+                    key=f"status_{tarefa['id']}"
+                )
+
+                if st.button(
+                    "Salvar Alterações",
+                    key=f"editar_{tarefa['id']}"
+                ):
+
+                    payload = {
+                        "title": novo_titulo,
+                        "description": nova_desc,
+                        "status": novo_status
+                    }
+
+                    edit_response = requests.patch(
+                        f"{URL_TASKS}/{tarefa['id']}",
+                        json=payload,
+                        headers=headers
+                    )
+
+                    if edit_response.status_code == 200:
+
+                        st.success(
+                            "Tarefa atualizada!"
+                        )
+
+                        st.rerun()
+
+                    else:
+
+                        st.error(
+                            edit_response.text
+                        )
+
+        # ==================================
+        # EXCLUIR
+        # ==================================
+
+        with col2:
+
+            if st.button(
+                "🗑 Excluir",
+                key=f"delete_{tarefa['id']}"
+            ):
+
+                delete_response = requests.delete(
+                    f"{URL_TASKS}/{tarefa['id']}",
+                    headers=headers
+                )
+
+                if delete_response.status_code in [200, 204]:
+
+                    st.success(
+                        "Tarefa removida!"
+                    )
+
                     st.rerun()
+
                 else:
-                    st.error(f"Erro ao criar tarefa: {response.text}")
 
-st.markdown("---")
-
-# --- Listagem de Tarefas ---
-if not tasks:
-    st.info("Nenhuma tarefa encontrada.")
-else:
-    for t in tasks:
-        with st.container(border=True):
-            c1, c2 = st.columns([4, 1])
-            with c1:
-                st.subheader(t['title'])
-                st.caption(f"Status: {t['status']} | Entrega: {t.get('due_date', 'S/D')}")
-                if t.get('description'):
-                    st.write(t['description'])
-            
-            with c2:
-                if st.button("🗑️", key=f"del_{t['id']}"):
-                    requests.delete(f"{API_TASKS}/{t['id']}", headers=get_headers(), timeout=10)
-                    st.rerun()
-                if st.button("✏️", key=f"edit_btn_{t['id']}"):
-                    st.session_state[f"edit_task_{t['id']}"] = True
-
-            # Form de Edição Inline
-            if st.session_state.get(f"edit_task_{t['id']}", False):
-                with st.form(f"f_edit_{t['id']}"):
-                    new_t_title = st.text_input("Novo Título", value=t['title'])
-                    new_status = st.selectbox("Status", ["pending", "in_progress", "completed"], 
-                                            index=["pending", "in_progress", "completed"].index(t['status']))
-                    if st.form_submit_button("Confirmar"):
-                        try:
-                            res = requests.patch(f"{API_TASKS}/{t['id']}", headers=get_headers(), 
-                                         json={"title": new_t_title, "status": new_status}, timeout=10)
-                            if res.ok:
-                                st.session_state[f"edit_task_{t['id']}"] = False
-                                st.rerun()
-                        except Exception as e:
-                            st.error(f"Erro ao atualizar: {e}")
+                    st.error(
+                        delete_response.text
+                    )
