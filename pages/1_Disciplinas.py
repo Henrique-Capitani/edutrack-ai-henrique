@@ -19,7 +19,7 @@ st.title("📚 Minhas Disciplinas")
 # API
 # ==========================================
 
-BASE_URL = "https://x8ki-letl-twmt.n7.xano.io/api:edutrack/subjects"
+URL_SUBJECTS = "https://x8ki-letl-twmt.n7.xano.io/api:edutrack/subjects"
 
 
 headers = {

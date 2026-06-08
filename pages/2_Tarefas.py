@@ -13,8 +13,8 @@ if "auth_token" not in st.session_state:
 # CONFIG
 # ==========================================
 
-API_TASKS = "https://x8ki-letl-twmt.n7.xano.io/api:edutrack/tasks"
-API_SUBJECTS = "https://x8ki-letl-twmt.n7.xano.io/api:edutrack/subjects"
+URL_TASKS = "https://x8ki-letl-twmt.n7.xano.io/api:edutrack/tasks"
+URL_SUBJECTS = "https://x8ki-letl-twmt.n7.xano.io/api:edutrack/subjects"
 
 headers = {
     "Authorization": f"Bearer {st.session_state.auth_token}"
